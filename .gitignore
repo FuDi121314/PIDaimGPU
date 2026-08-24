@@ -1,3 +1,4 @@
 build/
 selfRef/
 .vscode/
+*.rc.txt
