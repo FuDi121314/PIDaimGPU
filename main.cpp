@@ -135,39 +135,6 @@ cv::Point findtg(const cv::Mat& frame) {
     return cv::Point(cx, cy);
 }
 
-
-struct TargetInfo {
-    cv::Point center;
-    cv::Rect  boundingBox;
-};
-
-std::vector<TargetInfo> findAllTargets(const cv::Mat& frame) {
-    cv::Mat mask;
-    cv::inRange(frame, cv::Scalar(0, 0, 200), cv::Scalar(50, 50, 255), mask);
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5,5));
-    cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
-    cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel);
-
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    std::vector<TargetInfo> targets;
-    for (const auto& contour : contours) {
-        cv::Moments m = cv::moments(contour);
-        if (m.m00 == 0) continue;
-        int cx = static_cast<int>(m.m10 / m.m00);
-        int cy = static_cast<int>(m.m01 / m.m00);
-        // Ignore points too close to the border (optional)
-        if (cx < 10 || cy < 10 || cx > frame.cols - 10 || cy > frame.rows - 10)
-            continue;
-        TargetInfo info;
-        info.center = cv::Point(cx, cy);
-        info.boundingBox = cv::boundingRect(contour);
-        targets.push_back(info);
-    }
-    return targets;
-}
-
 // Find target
 cv::Point findtg(const cv::Mat& frame) {
     cv::Mat mask;
@@ -383,31 +350,11 @@ HWND SelectWindowGUI() {
 
 // Main
 int main() {
-    /*
-    std::vector<HWND> detectedWindows;
-
-    std::cout << "Starting top-level window selection...\n\n";
-
-     Pass the address of the vector to the callback via LPARAM
-    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&detectedWindows));
-
-    std::cout << "\nSelection finished. Total windows found: " << detectedWindows.size() << std::endl;
-    
-    system("pause");
-    */
 
     // win
     SetProcessDPIAware(); // Ensure correct DPI scaling for window coordinates
     HWND gameWnd = SelectWindowGUI();
-    
-    /*
-    //HWND gameWnd = FindWindow(NULL, "Aim");         //replace findwindow
-    if (!gameWnd) {
-        std::cerr << "Aim window not found! Start Base.exe first." << std::endl;
-        std::cout << "Press Enter to exit...";
-        std::cin.get();
-        return -1;
-    }*/
+
    if (gameWnd == NULL) {
         std::cout << "No window selected. Exiting." << std::endl;
         return 0;
@@ -415,7 +362,6 @@ int main() {
 
     std::wcout << L"Selected window HWND: " << gameWnd << std::endl;
     SetForegroundWindow(gameWnd);
-    std::cout << "20:05 24.8.2026\n";
     Sleep(500);
 
     // Get initial window rect for center (used only for display)
@@ -477,7 +423,7 @@ int main() {
     cv::namedWindow("Auto-Aim Monitor", cv::WINDOW_NORMAL);
     cv::resizeWindow("Auto-Aim Monitor", 640, 480);
 
-    std::cout << "\n=== PID Auto-Aim ===2026.8.26. 21:00\n";
+    std::cout << "\n=== PID Auto-Aim ===\n";
     std::cout << "Controls:\n";
     std::cout << "  T - toggle auto-aim\n  S - start PID\n  X - stop PID\n";
     std::cout << "  R - recalculate window rect\n  P - input PID gains\n";
@@ -531,22 +477,21 @@ int main() {
         bool targetFound = (target.x != -1 && target.y != -1);
         */
 
-        // ===== NEW: Detection pipeline with DNN fallback =====
+        // Detection pipeline with DNN fallback
         std::vector<TargetInfo> candidates;
         if (useDnn && dnnLoaded) {
-            // ---- AI DNN detection ----
+            // AI DNN detection 
             std::vector<Detection> dets = dnnDetector.detect(frame);
             for (const auto& d : dets) {
                 // Optionally filter class ID 0 (person) if you want only people.
                 // if (d.classId != 0) continue; 
-                
                 TargetInfo info;
                 info.center = cv::Point(d.box.x + d.box.width/2, d.box.y + d.box.height/2);
                 info.boundingBox = d.box;
                 candidates.push_back(info);
             }
         } else {
-            // ---- Traditional Color detection (your original code) ----
+            // Traditional Color detection
             candidates = findAllTargets(frame);
         }
 
