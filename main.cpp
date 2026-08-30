@@ -135,29 +135,6 @@ cv::Point findtg(const cv::Mat& frame) {
     return cv::Point(cx, cy);
 }
 
-// Find target
-cv::Point findtg(const cv::Mat& frame) {
-    cv::Mat mask;
-    cv::inRange(frame, cv::Scalar(0, 0, 200), cv::Scalar(50, 50, 255), mask);
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5,5));
-    cv::morphologyEx(mask, mask, cv::MORPH_OPEN, kernel);
-    cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel);
-
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    if (contours.empty()) return cv::Point(-1, -1);
-
-    auto largest = std::max_element(contours.begin(), contours.end(),
-        [](const auto& a, const auto& b) { return cv::contourArea(a) < cv::contourArea(b); });
-    cv::Moments m = cv::moments(*largest);
-    if (m.m00 == 0) return cv::Point(-1, -1);
-    int cx = static_cast<int>(m.m10 / m.m00);
-    int cy = static_cast<int>(m.m01 / m.m00);
-    if (cx < 10 || cy < 10 || cx > frame.cols - 10 || cy > frame.rows - 10)
-        return cv::Point(-1, -1);
-    return cv::Point(cx, cy);
-}
-
 
 struct TargetInfo {
     cv::Point center;
